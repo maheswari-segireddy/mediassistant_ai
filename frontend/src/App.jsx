@@ -634,11 +634,49 @@ How can I help you today? You can:
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      const base64 = e.target.result.split(",")[1];
-      setUploadedFile({
-        name: file.name, type: file.type,
-        base64, preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null
-      });
+      const isImage = file.type?.startsWith("image/");
+      
+      // If it's a large image, compress it using a canvas
+      if (isImage) {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          
+          // Max dimension of 1000px is plenty for Gemini Vision API
+          const MAX_SIZE = 1000;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with 0.8 quality
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+          const base64 = compressedDataUrl.split(",")[1];
+          
+          setUploadedFile({
+            name: file.name, type: "image/jpeg",
+            base64, preview: URL.createObjectURL(file)
+          });
+        };
+        img.src = e.target.result;
+      } else {
+        // Non-image files (like small text/pdfs)
+        const base64 = e.target.result.split(",")[1];
+        setUploadedFile({
+          name: file.name, type: file.type,
+          base64, preview: null
+        });
+      }
     };
     reader.readAsDataURL(file);
   };

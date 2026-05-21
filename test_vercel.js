@@ -1,16 +1,17 @@
-async function testApi() {
+async function testLarge() {
+  const url = "https://mediassistant-ai.vercel.app/api/chat";
+  const largeString = "A".repeat(5 * 1024 * 1024); // 5 MB string
+  
   try {
-    const res = await fetch("https://mediassistant-ai-git-main-maheswaris-projects-7c172090.vercel.app/api/chat", {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: "hello" }] })
+      body: JSON.stringify({ messages: [{ role: "user", content: largeString }] })
     });
-    const text = await res.text();
     console.log("Status:", res.status);
     console.log("Headers:", Object.fromEntries(res.headers.entries()));
-    console.log("Body:", text);
   } catch (e) {
     console.error("Fetch failed:", e);
   }
 }
-testApi();
+testLarge();
