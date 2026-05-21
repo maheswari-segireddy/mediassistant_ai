@@ -1,17 +1,28 @@
-async function testLarge() {
+async function testSize(sizeMB) {
   const url = "https://mediassistant-ai.vercel.app/api/chat";
-  const largeString = "A".repeat(5 * 1024 * 1024); // 5 MB string
+  const sizeBytes = sizeMB * 1024 * 1024;
+  const largeString = "A".repeat(sizeBytes);
   
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: largeString }] })
+      body: JSON.stringify({ 
+        system: "test", 
+        messages: [{ role: "user", content: largeString }] 
+      })
     });
-    console.log("Status:", res.status);
-    console.log("Headers:", Object.fromEntries(res.headers.entries()));
+    console.log(`Payload: ${sizeMB}MB -> Status: ${res.status}`);
+    if (res.status >= 400 && res.status < 500) {
+        console.log(`Headers:`, Object.fromEntries(res.headers.entries()));
+    }
   } catch (e) {
-    console.error("Fetch failed:", e);
+    console.error(`Payload: ${sizeMB}MB -> Fetch failed:`, e.message);
   }
 }
-testLarge();
+
+async function run() {
+    await testSize(0.5); // 500KB
+    await testSize(2);   // 2MB
+}
+run();

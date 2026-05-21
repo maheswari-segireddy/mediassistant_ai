@@ -88,6 +88,7 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Gemini API Error:", error);
+    res.setHeader("Access-Control-Allow-Origin", "*");
     return res.status(500).json({
       error: "AI Generation Error",
       message: error.message || "An unexpected error occurred while communicating with the Gemini API.",

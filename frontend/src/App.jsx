@@ -731,9 +731,9 @@ How can I help you today? You can:
 
       // Call the Vercel serverless API (or local Express backend during dev)
       const API_BASE_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
-      const res = await fetch(`${API_BASE_URL}/api/chat`, {
+      const fetchUrl = `${API_BASE_URL}/api/chat`;
+      const res = await fetch(fetchUrl, {
         method: "POST",
-        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system: SYSTEM_PROMPT + (sysAddons[activeTab] || ""),
@@ -743,12 +743,10 @@ How can I help you today? You can:
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Unable to reach server.");
+        throw new Error(errorData.message || `Server returned ${res.status}`);
       }
 
       const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content
-        || "I'm sorry, I couldn't generate a response. Please try again.";
 
       setM(prev => [...prev, {
         id: uid(), role: "assistant", ts: new Date(),
