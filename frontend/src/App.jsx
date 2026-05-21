@@ -691,8 +691,8 @@ How can I help you today? You can:
         medicine: "\n\nThe user is asking about medication. Provide factual drug information including uses, side effects, interactions. Always advise following doctor's prescription.",
       };
 
-      // Call our local Express backend or the deployed live server
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      // Call the Vercel serverless API (or local Express backend during dev)
+      const API_BASE_URL = import.meta.env.DEV ? "http://localhost:5000" : "";
       const res = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
