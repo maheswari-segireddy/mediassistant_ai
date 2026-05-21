@@ -746,6 +746,8 @@ How can I help you today? You can:
       }
 
       const data = await res.json();
+      
+      const reply = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
 
       setM(prev => [...prev, {
         id: uid(), role: "assistant", ts: new Date(),
