@@ -69,34 +69,348 @@ function Avatar({ label, bg = "#dc2626", size = 36 }) {
   );
 }
 
-function EmergencyCard() {
+// ECG Pulse and Heart Metrics Simulator Component
+function ECGSimulator({ onTriggerTriage }) {
+  const [bpm, setBpm] = useState(72);
+  const [spo2, setSpo2] = useState(98);
+  const canvasRef = useRef(null);
+  const phaseRef = useRef(0);
+  const pointsRef = useRef([]);
+
+  // Determine warning levels
+  const isHighBpm = bpm > 130;
+  const isLowBpm = bpm < 50;
+  const isLowSpo2 = spo2 < 90;
+  const hasAlert = isHighBpm || isLowBpm || isLowSpo2;
+
+  let alertLevel = "normal";
+  let alertColor = "#10b981"; // Emerald green
+  let statusText = "Optimal Cardiac rhythm";
+
+  if (isHighBpm) {
+    alertLevel = "tachycardia";
+    alertColor = "#ef4444"; // Red
+    statusText = "🚨 Warning: Tachycardia (High HR)";
+  } else if (isLowBpm) {
+    alertLevel = "bradycardia";
+    alertColor = "#f59e0b"; // Amber
+    statusText = "⚠️ Alert: Bradycardia (Low HR)";
+  } else if (isLowSpo2) {
+    alertLevel = "hypoxia";
+    alertColor = "#ef4444"; // Red
+    statusText = "🚨 Danger: Low Oxygen Saturation";
+  }
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let animId;
+
+    // Initialize points array
+    const maxPoints = 160;
+    if (pointsRef.current.length === 0) {
+      for (let i = 0; i < maxPoints; i++) {
+        pointsRef.current.push(0);
+      }
+    }
+
+    const draw = () => {
+      if (!canvas || !ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid lines (medical paper style)
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.04)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j < canvas.height; j += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      // ECG Math sequence for 1 phase cycle
+      const phase = phaseRef.current;
+      let amp = 0;
+
+      if (phase >= 0.1 && phase < 0.2) {
+        // P Wave (small bump)
+        amp = Math.sin(Math.PI * (phase - 0.1) / 0.1) * 0.12;
+      } else if (phase >= 0.30 && phase < 0.32) {
+        // Q Dip
+        amp = -0.15 * Math.sin(Math.PI * (phase - 0.30) / 0.02);
+      } else if (phase >= 0.32 && phase < 0.35) {
+        // R Spike (huge)
+        amp = Math.sin(Math.PI * (phase - 0.32) / 0.03) * 1.0;
+      } else if (phase >= 0.35 && phase < 0.38) {
+        // S Dip (deep)
+        amp = -0.3 * Math.sin(Math.PI * (phase - 0.35) / 0.03);
+      } else if (phase >= 0.48 && phase < 0.62) {
+        // T Wave (medium bump)
+        amp = Math.sin(Math.PI * (phase - 0.48) / 0.14) * 0.28;
+      }
+
+      // Add noise / artifact simulation if extreme metrics
+      if (hasAlert) {
+        amp += (Math.random() - 0.5) * 0.04;
+      }
+
+      // Advance ECG phase based on BPM
+      // 60 frames per second standard. Speed up phase depending on beats per second.
+      const bps = bpm / 60;
+      phaseRef.current = (phase + (bps / 60)) % 1;
+
+      // Update points array
+      pointsRef.current.push(amp);
+      if (pointsRef.current.length > maxPoints) {
+        pointsRef.current.shift();
+      }
+
+      // Draw neon ECG glow wave
+      ctx.strokeStyle = alertColor;
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = alertColor;
+      ctx.beginPath();
+
+      const centerY = canvas.height / 2;
+      const step = canvas.width / maxPoints;
+
+      for (let i = 0; i < pointsRef.current.length; i++) {
+        const xCoord = i * step;
+        // Invert Y coordinate so positive amp goes UP
+        const yCoord = centerY - (pointsRef.current[i] * (canvas.height * 0.38));
+        if (i === 0) {
+          ctx.moveTo(xCoord, yCoord);
+        } else {
+          ctx.lineTo(xCoord, yCoord);
+        }
+      }
+      ctx.stroke();
+
+      // Reset shadow for subsequent drawings
+      ctx.shadowBlur = 0;
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, [bpm, alertColor, hasAlert]);
+
+  const triggerAITriage = () => {
+    let triagePrompt = `I am testing my visual metrics. My current simulated vital statistics are:
+- Heart Rate (BPM): ${bpm} bpm (${isHighBpm ? 'Abnormally High' : isLowBpm ? 'Abnormally Low' : 'Normal'})
+- Oxygen Level (SpO2): ${spo2}% (${isLowSpo2 ? 'Abnormally Low / Hypoxia' : 'Normal'})
+
+Please evaluate these stats and provide triage advice.`;
+    onTriggerTriage(triagePrompt);
+  };
+
   return (
     <div style={{
-      background: "linear-gradient(135deg, #fef2f2, #ffe4e6)",
-      border: "2px solid #fecdd3", borderRadius: 14, padding: "16px 20px",
-      margin: "8px 0", display: "flex", gap: 14, alignItems: "flex-start",
-      animation: "medFadeIn .3s ease", boxShadow: "0 4px 15px rgba(220,38,38,0.08)",
-      width: "100%"
+      background: "#0f172a", borderRadius: 20, padding: "20px", color: "#f8fafc",
+      border: `2px solid ${hasAlert ? alertColor + "40" : "#1e293b"}`,
+      boxShadow: `0 8px 30px ${hasAlert ? alertColor + "15" : "rgba(0,0,0,0.2)"}`,
+      display: "flex", flexDirection: "column", gap: 16, height: "100%",
+      animation: "medFadeIn 0.4s ease"
     }}>
-      <div style={{ fontSize: 32, lineHeight: 1 }}>🚨</div>
-      <div>
-        <p style={{ margin: 0, fontWeight: 800, color: "#991b1b", fontSize: 16, letterSpacing: -0.3 }}>
-          EMERGENCY DETECTED
-        </p>
-        <p style={{ margin: "6px 0 0", color: "#7f1d1d", fontSize: 13, lineHeight: 1.5 }}>
-          The symptoms described may require <strong>immediate emergency care</strong>.
-          Call <strong style={{ fontSize: 16 }}>112</strong> or your local emergency services <strong>right now</strong>.
-          Do not wait for an online response.
-        </p>
-        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-          {["🇮🇳 India: 112", "🚑 Ambulance: 108", "☎ AIIMS: 011-26588500"].map(s => (
-            <Pill key={s} color="#991b1b" bg="#fef2f2">{s}</Pill>
-          ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit', sans-serif" }}>
+            🫀 Live Vitals & ECG Wave
+          </h3>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#94a3b8" }}>Real-time clinical ECG simulation</p>
+        </div>
+        <Pill color={alertColor} bg={`${alertColor}15`}>{statusText}</Pill>
+      </div>
+
+      {/* Screen Display */}
+      <div style={{
+        background: "#020617", border: "1.5px solid #1e293b", borderRadius: 12,
+        height: 120, position: "relative", overflow: "hidden", display: "flex", alignItems: "center"
+      }}>
+        <canvas ref={canvasRef} width={280} height={120} style={{ width: "100%", height: "100%" }} />
+        {/* Neon scan lines overlay */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+          backgroundSize: "100% 4px, 6px 100%"
+        }} />
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* BPM Slider */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Heart Rate (BPM)</span>
+            <span style={{ color: alertColor, fontWeight: 800 }}>{bpm} bpm</span>
+          </div>
+          <input type="range" min="30" max="200" value={bpm} onChange={e => setBpm(parseInt(e.target.value))}
+            style={{ width: "100%", accentColor: alertColor, cursor: "pointer" }} />
+        </div>
+
+        {/* SpO2 Slider */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+            <span style={{ color: "#94a3b8", fontWeight: 600 }}>Oxygen Saturation (SpO2)</span>
+            <span style={{ color: isLowSpo2 ? "#ef4444" : "#34d399", fontWeight: 800 }}>{spo2}%</span>
+          </div>
+          <input type="range" min="70" max="100" value={spo2} onChange={e => setSpo2(parseInt(e.target.value))}
+            style={{ width: "100%", accentColor: isLowSpo2 ? "#ef4444" : "#10b981", cursor: "pointer" }} />
+        </div>
+      </div>
+
+      {/* Emergency Triage Button */}
+      {hasAlert && (
+        <button onClick={triggerAITriage} style={{
+          background: `linear-gradient(135deg, ${alertColor}, #7f1d1d)`,
+          color: "#fff", border: "none", borderRadius: 10, padding: "10px 14px",
+          fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex",
+          alignItems: "center", justifyContent: "center", gap: 8,
+          boxShadow: `0 4px 15px ${alertColor}40`, animation: "medPulse 1.5s infinite"
+        }}>
+          🚨 Consult MediAssist AI Triage <span>→</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+// SVG Body Map Symptom Selector Component
+function BodyMap({ onSelectSymptom }) {
+  const [selectedPart, setSelectedPart] = useState(null);
+
+  const bodyParts = {
+    head: {
+      name: "Head & Neck",
+      symptoms: ["Severe Headache / Migraine", "High Fever", "Sudden Dizziness", "Throat Soreness"],
+      x: 100, y: 45
+    },
+    chest: {
+      name: "Chest Area",
+      symptoms: ["Chest tightness or pain", "Shortness of breath", "Persistent dry cough", "Heart Palpitations"],
+      x: 100, y: 110
+    },
+    abdomen: {
+      name: "Abdomen",
+      symptoms: ["Acute stomach ache", "Acid reflux / Heartburn", "Severe Nausea", "Bloating & Indigestion"],
+      x: 100, y: 165
+    },
+    joints: {
+      name: "Joints & Muscles",
+      symptoms: ["Joint stiffness / Swelling", "Acute Muscle Pain", "Sudden numbness in arms", "Chronic Back Pain"],
+      x: 55, y: 140
+    },
+    skin: {
+      name: "Dermatology / Skin",
+      symptoms: ["Red glowing rash", "Severe itching", "Dry skin / eczema", "Minor burn or sting"],
+      x: 100, y: 235
+    }
+  };
+
+  const handleSymptomClick = (symptom) => {
+    onSelectSymptom(`I am using the symptom selector. I am experiencing the following symptom: ${symptom}. Please guide me on possible causes and advice.`);
+    setSelectedPart(null);
+  };
+
+  return (
+    <div style={{
+      background: "#ffffff", borderRadius: 20, padding: "20px",
+      border: "1px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.02)",
+      display: "flex", gap: 20, height: "100%", position: "relative",
+      minHeight: 380, animation: "medFadeIn 0.4s ease"
+    }}>
+      {/* SVG Vector Body */}
+      <div style={{ flex: 1.2, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <svg viewBox="0 0 200 400" style={{ width: "100%", maxHeight: 340, overflow: "visible" }}>
+          {/* Abstract human vector wireframe */}
+          <g stroke="#cbd5e1" strokeWidth="2.5" fill="none" opacity="0.85">
+            {/* Head */}
+            <circle cx="100" cy="45" r="20" stroke="#94a3b8" />
+            {/* Spine/Torso */}
+            <path d="M 100 65 L 100 220" stroke="#94a3b8" />
+            <path d="M 75 80 L 125 80 L 115 210 L 85 210 Z" stroke="#cbd5e1" fill="#f8fafc" />
+            {/* Arms */}
+            <path d="M 75 80 Q 50 140 40 200" stroke="#cbd5e1" />
+            <path d="M 125 80 Q 150 140 160 200" stroke="#cbd5e1" />
+            {/* Legs */}
+            <path d="M 85 210 L 75 310 L 70 380" stroke="#cbd5e1" />
+            <path d="M 115 210 L 125 310 L 130 380" stroke="#cbd5e1" />
+          </g>
+
+          {/* Glowing hot spots */}
+          {Object.entries(bodyParts).map(([key, part]) => {
+            const active = selectedPart === key;
+            return (
+              <g key={key} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setSelectedPart(active ? null : key); }}>
+                <circle cx={part.x} cy={part.y} r="18" fill="transparent" />
+                <circle cx={part.x} cy={part.y} r="6" fill="#dc2626" style={{
+                  animation: "medPulse 1.8s infinite",
+                  filter: "drop-shadow(0 0 6px #dc2626)"
+                }} />
+                <circle cx={part.x} cy={part.y} r={active ? "12" : "0"} fill="none" stroke="#dc2626" strokeWidth="1.5" style={{
+                  transition: "all 0.2s ease"
+                }} />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Floating Options Panel */}
+      <div style={{ flex: 1.4, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#0f172a", fontFamily: "'Outfit', sans-serif" }}>
+            🧍 Symptom Locator
+          </h3>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#64748b" }}>Click glowing points on the map</p>
+        </div>
+
+        <div style={{
+          background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12,
+          padding: "14px", flex: 1, display: "flex", flexDirection: "column",
+          justifyContent: "center", minHeight: 180, position: "relative"
+        }}>
+          {selectedPart ? (
+            <div style={{ animation: "medFadeIn 0.2s ease" }}>
+              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#dc2626", fontFamily: "'Outfit', sans-serif" }}>
+                📍 {bodyParts[selectedPart].name}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {bodyParts[selectedPart].symptoms.map(s => (
+                  <button key={s} onClick={() => handleSymptomClick(s)} style={{
+                    background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+                    padding: "8px 12px", fontSize: 12, color: "#334155", textAlign: "left",
+                    cursor: "pointer", transition: "all 0.15s", outline: "none",
+                    fontWeight: 500, boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#fef2f2"; e.currentTarget.style.borderColor = "#fecdd3"; e.currentTarget.style.color = "#dc2626"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#334155"; }}>
+                    {s} <span>→</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "10px", color: "#94a3b8" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>Tap any red pulsing hotspot on the human figure to select your symptom.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
 
 function MessageBubble({ msg }) {
   const user = msg.role === "user";
@@ -169,7 +483,7 @@ function TypingBubble() {
 }
 
 /* ─── SCREENS ─────────────────────────────────────────────────── */
-function Dashboard({ onNav, stats }) {
+function Dashboard({ onNav, stats, onAsk }) {
   const cards = [
     { icon: "💬", label: "Symptom Chat", desc: "Describe symptoms & get guided info", tab: "chat", color: "#dc2626", bg: "#fef2f2" },
     { icon: "🔬", label: "Image Analysis", desc: "Upload skin, eye, or visual symptoms", tab: "image", color: "#2563eb", bg: "#eff6ff" },
@@ -224,6 +538,12 @@ function Dashboard({ onNav, stats }) {
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, fontWeight: 500 }}>{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Vitals & Symptom Mapping Section */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, marginBottom: 32 }}>
+        <ECGSimulator onTriggerTriage={onAsk} />
+        <BodyMap onSelectSymptom={onAsk} />
       </div>
 
       {/* Feature cards */}
@@ -888,7 +1208,7 @@ How can I help you today? You can:
 
         {/* Content */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {tab === "home" && <Dashboard onNav={setTab} stats={stats} />}
+          {tab === "home" && <Dashboard onNav={setTab} stats={stats} onAsk={handleFAQAsk} />}
           {tab === "emergency" && <EmergencyScreen />}
           {tab === "faq" && <FAQScreen onAsk={handleFAQAsk} />}
           {activeTab && (
