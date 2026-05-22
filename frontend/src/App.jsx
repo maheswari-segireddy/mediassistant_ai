@@ -412,6 +412,35 @@ function BodyMap({ onSelectSymptom }) {
 }
 
 
+function EmergencyCard() {
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #fef2f2, #ffe4e6)",
+      border: "2px solid #fecdd3", borderRadius: 14, padding: "16px 20px",
+      margin: "8px 0", display: "flex", gap: 14, alignItems: "flex-start",
+      animation: "medFadeIn .3s ease", boxShadow: "0 4px 15px rgba(220,38,38,0.08)",
+      width: "100%"
+    }}>
+      <div style={{ fontSize: 32, lineHeight: 1 }}>🚨</div>
+      <div>
+        <p style={{ margin: 0, fontWeight: 800, color: "#991b1b", fontSize: 16, letterSpacing: -0.3 }}>
+          EMERGENCY DETECTED
+        </p>
+        <p style={{ margin: "6px 0 0", color: "#7f1d1d", fontSize: 13, lineHeight: 1.5 }}>
+          The symptoms described may require <strong>immediate emergency care</strong>.
+          Call <strong style={{ fontSize: 16 }}>112</strong> or your local emergency services <strong>right now</strong>.
+          Do not wait for an online response.
+        </p>
+        <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+          {["🇮🇳 India: 112", "🚑 Ambulance: 108", "☎ AIIMS: 011-26588500"].map(s => (
+            <Pill key={s} color="#991b1b" bg="#fef2f2">{s}</Pill>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ msg }) {
   const user = msg.role === "user";
   return (
