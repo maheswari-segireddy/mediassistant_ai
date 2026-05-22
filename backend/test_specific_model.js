@@ -3,25 +3,39 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 dotenv.config();
 
-async function testModel() {
+async function testModel(modelName) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    console.error("API Key missing!");
-    return;
-  }
-  
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: modelName,
     });
     
-    console.log("Calling gemini-2.0-flash...");
-    const result = await model.generateContent("Say hello!");
-    console.log("Success! Response:", result.response.text());
+    console.log(`Testing ${modelName}...`);
+    const result = await model.generateContent("Say 'Active'!");
+    console.log(`SUCCESS on ${modelName}! Response:`, result.response.text());
+    return true;
   } catch (e) {
-    console.error("Failed to run gemini-2.0-flash:", e);
+    console.error(`FAILED on ${modelName}:`, e.message || e);
+    return false;
   }
 }
 
-testModel();
+async function run() {
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.0-flash-lite",
+    "gemini-pro-latest"
+  ];
+  
+  for (const m of models) {
+    const success = await testModel(m);
+    if (success) {
+      console.log(`\nFound working model: ${m}`);
+      break;
+    }
+  }
+}
+
+run();
