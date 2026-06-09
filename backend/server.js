@@ -68,9 +68,9 @@ app.post("/api/chat", async (req, res) => {
     // Initialize the Gemini API client
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Use gemini-flash-latest for rapid, rich responses (supports multi-modal input and system instructions)
+    // Use gemini-3.1-flash-lite for rapid, rich responses (supports multi-modal input and system instructions)
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-3.1-flash-lite",
       systemInstruction: system || "You are MediAssist AI — a compassionate medical assistant.",
     });
 

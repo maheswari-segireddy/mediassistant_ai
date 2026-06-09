@@ -1157,6 +1157,10 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system: CHAT_SYSTEM_PROMPT, messages: apiMsgs })
       });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${res.status}`);
+      }
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || "No reply returned.";
 
@@ -1265,7 +1269,7 @@ export default function App() {
             <button onClick={() => setSideOpen(s => !s)} style={{ background: "transparent", border: "1px solid var(--border-color)", borderRadius: 8, padding: "8px 12px", cursor: "pointer", color: "var(--text-primary)" }}>☰</button>
             <div>
               <p style={{ margin: 0, fontWeight: 800, fontSize: 16 }}>Personal Clinical Companion</p>
-              <p style={{ margin: 0, fontSize: 10, color: "var(--text-muted)" }}>Secure localStorage data vault • Gemini 1.5 Engine</p>
+              <p style={{ margin: 0, fontSize: 10, color: "var(--text-muted)" }}>Secure localStorage data vault • Gemini 3.1 Engine</p>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
