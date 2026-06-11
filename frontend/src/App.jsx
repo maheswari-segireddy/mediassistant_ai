@@ -1433,15 +1433,16 @@ export default function App() {
               <button key={n.id} onClick={() => {
                 if (n.id === "reset") {
                   if (confirm("Are you sure you want to reset all conversations, documents, reminders, and statistics? This cannot be undone.")) {
-                    localStorage.removeItem("mediassist_chat");
-                    localStorage.removeItem("mediassist_vault");
-                    localStorage.removeItem("mediassist_reminders");
-                    localStorage.removeItem("mediassist_vitals");
-                    localStorage.removeItem("mediassist_stats");
+                    localStorage.setItem("mediassist_chat", JSON.stringify([]));
+                    localStorage.setItem("mediassist_vault", JSON.stringify([]));
+                    localStorage.setItem("mediassist_reminders", JSON.stringify([]));
+                    localStorage.setItem("mediassist_vitals", JSON.stringify([]));
+                    localStorage.setItem("mediassist_stats", JSON.stringify({ queries: 0, images: 0, reports: 0, emergencies: 0 }));
                     
                     setChatMsgs([initMsg]);
                     setVaultRecords([]);
                     setReminders([]);
+                    setVitalsLogs([]);
                     setStats({ queries: 0, images: 0, reports: 0, emergencies: 0 });
                     setAnalyzerResult("");
                     
