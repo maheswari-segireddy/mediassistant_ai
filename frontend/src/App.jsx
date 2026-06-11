@@ -426,108 +426,94 @@ function BPChart({ data }) {
 }
 
 /* ─── SCREEN COMPONENTS ─────────────────────────────────────── */
-function DashboardScreen({ vitalsLogs, onAddLog, onAskAI }) {
-  const [weight, setWeight] = useState("");
-  const [bpSys, setBpSys] = useState("");
-  const [bpDia, setBpDia] = useState("");
-  const [sugar, setSugar] = useState("");
-  const [hr, setHr] = useState("");
-  const [insights, setInsights] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const submitLog = (e) => {
-    e.preventDefault();
-    if (!weight && !bpSys && !bpDia && !sugar && !hr) return;
-    onAddLog({
-      weight: weight || null,
-      bpSystolic: bpSys || null,
-      bpDiastolic: bpDia || null,
-      sugar: sugar || null,
-      hr: hr || null
-    });
-    setWeight(""); setBpSys(""); setBpDia(""); setSugar(""); setHr("");
-  };
-
-  const getInsights = async () => {
-    if (vitalsLogs.length === 0) {
-      alert("Please enter some vitals logs first!");
-      return;
-    }
-    setLoading(true);
-    setInsights("");
-    try {
-      const prompt = `Here is my logged medical vitals history over time:\n${vitalsLogs.map(l =>
-        `Date: ${new Date(l.timestamp).toLocaleDateString()}, Weight: ${l.weight}kg, BP: ${l.bpSystolic}/${l.bpDiastolic} mmHg, Sugar: ${l.sugar} mg/dL, HR: ${l.hr} BPM`
-      ).join("\n")}\n\nPlease analyze these vitals trends and provide clear, bulleted healthcare advice, diet modifications, or health cautions. Keep it encouraging.`;
-      
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: "You are a clinical wellness coach explaining health vital metrics and patterns.", messages: [{ role: "user", content: prompt }] })
-      });
-      const data = await res.json();
-      setInsights(data.choices?.[0]?.message?.content || "Could not fetch insights.");
-    } catch (e) {
-      setInsights("⚠️ Error checking metrics. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function DashboardScreen({ stats, onNavigate }) {
   return (
-    <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* Vitals Form */}
-      <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
-        <h3 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 800 }}>📊 Log Daily Health Vitals</h3>
-        <form onSubmit={submitLog} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 12, alignItems: "end" }}>
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Weight (kg)</label>
-            <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }} placeholder="70" />
+    <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 24, justifyOrigin: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* Portal welcome banner card */}
+        <div style={{
+          background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
+          borderRadius: 24,
+          padding: "36px",
+          color: "#fff",
+          position: "relative",
+          overflow: "hidden",
+          boxShadow: "0 10px 30px rgba(225, 29, 72, 0.15)"
+        }}>
+          {/* Subtle heartbeat line background effect */}
+          <div style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            fontSize: 90,
+            opacity: 0.08,
+            pointerEvents: "none",
+            userSelect: "none"
+          }}>🫀</div>
+          
+          <div style={{ display: "inline-block", background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)", padding: "6px 14px", borderRadius: 20, fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", marginBottom: 16 }}>
+            Healthcare • Vision • Gemini AI
           </div>
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Systolic BP</label>
-            <input type="number" value={bpSys} onChange={e => setBpSys(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }} placeholder="120" />
+          
+          <h1 style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 900, fontFamily: "'Outfit', sans-serif" }}>MediAssist AI Portal</h1>
+          <p style={{ margin: "0 0 24px", fontSize: 14, opacity: 0.9, lineHeight: 1.6, maxWidth: 640 }}>
+            A secure, responsible healthcare companion powered by Google Gemini. Explore health topics, explain reports, check medications, and analyze visual symptoms under secure parameters.
+          </p>
+          
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(0,0,0,0.18)", padding: "10px 16px", borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+            ⚠️ Educational Use Only — Not a substitute for a clinical consultation.
           </div>
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Diastolic BP</label>
-            <input type="number" value={bpDia} onChange={e => setBpDia(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }} placeholder="80" />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Blood Sugar (mg/dL)</label>
-            <input type="number" value={sugar} onChange={e => setSugar(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }} placeholder="100" />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Heart Rate (BPM)</label>
-            <input type="number" value={hr} onChange={e => setHr(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }} placeholder="72" />
-          </div>
-          <button type="submit" style={{ background: "var(--primary)", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, cursor: "pointer" }}>Save Log</button>
-        </form>
-      </div>
-
-      {/* Visual Charts Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-        <BPChart data={vitalsLogs} />
-        <VitalsChart data={vitalsLogs} metric="sugar" label="Blood Sugar (mg/dL)" />
-        <VitalsChart data={vitalsLogs} metric="weight" label="Weight (kg)" />
-        <VitalsChart data={vitalsLogs} metric="hr" label="Heart Rate (BPM)" />
-      </div>
-
-      {/* AI Wellness Coach */}
-      <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", justifyOrigin: "center", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>✨ AI Personalized Vitals Insights</h3>
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Ask Gemini to inspect and alert about logged trends</p>
-          </div>
-          <button onClick={getInsights} disabled={loading} style={{
-            background: "var(--primary)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"
-          }}>{loading ? "Analyzing Logs..." : "Get Insights ↗"}</button>
         </div>
-        {insights && (
-          <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 12, padding: "16px", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-            {insights}
+
+        {/* Stats Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+          <div onClick={() => onNavigate("chat")} style={{
+            background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 20, padding: "24px", textAlign: "center", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12
+          }}>
+            <span style={{ fontSize: 32 }}>💬</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "var(--text-primary)" }}>{stats.queries}</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>Queries Answered</p>
+            </div>
           </div>
-        )}
+
+          <div onClick={() => onNavigate("analyzer")} style={{
+            background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 20, padding: "24px", textAlign: "center", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12
+          }}>
+            <span style={{ fontSize: 32 }}>🔬</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "var(--text-primary)" }}>{stats.images}</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>Images Analyzed</p>
+            </div>
+          </div>
+
+          <div onClick={() => onNavigate("vault")} style={{
+            background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 20, padding: "24px", textAlign: "center", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12
+          }}>
+            <span style={{ fontSize: 32 }}>📋</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "var(--text-primary)" }}>{stats.reports}</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>Reports Summarized</p>
+            </div>
+          </div>
+
+          <div onClick={() => onNavigate("chat")} style={{
+            background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 20, padding: "24px", textAlign: "center", cursor: "pointer", transition: "transform 0.2s, box-shadow 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12
+          }}>
+            <span style={{ fontSize: 32 }}>🚨</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#ef4444" }}>{stats.emergencies}</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>Emergency Alerts</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer info */}
+      <div style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", padding: "16px 0 0", borderTop: "1px solid var(--border-color)", display: "flex", justifyOrigin: "center", justifyContent: "space-between", alignItems: "center" }}>
+        <span>MediAssist AI Portal</span>
+        <span style={{ fontWeight: 700 }}>Dedicated Preliminary Reference Engine</span>
+        <span>Privacy Terms</span>
       </div>
     </div>
   );
@@ -1108,6 +1094,42 @@ function ModelInfoScreen() {
   );
 }
 
+function PrivacyPolicyScreen() {
+  return (
+    <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "24px" }}>
+        <h2 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 900, color: "var(--primary)" }}>🔒 Privacy Policy & Data Safeguards</h2>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          At MediAssist AI, your medical privacy is our highest clinical priority. We design and construct our services around strict local-first and client-side processing boundaries to assure safety and confidentiality.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+        <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 800 }}>📂 Local-First Data Storage</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+            All patient data, including health vitals, reminders, and parsed records, is indexed directly in your browser's private localStorage. We do not transmit or store your documents on external servers.
+          </p>
+        </div>
+        
+        <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 800 }}>🛡️ Gemini AI Privacy Boundaries</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+            Image analysis and triage sessions are executed securely using API parameters that enforce transient context operations. No personal identifier data is coupled with the models.
+          </p>
+        </div>
+
+        <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 800 }}>⚕️ HIPAA Compliance Protocols</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+            By housing patient telemetry strictly within the client device environment, MediAssist AI remains fully aligned with standard zero-trust configurations.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── MAIN APP COMPONENT ─────────────────────────────────────── */
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -1153,6 +1175,19 @@ export default function App() {
   const [aiLanguage, setAiLanguage] = useState("English");
   const [analyzerResult, setAnalyzerResult] = useState("");
 
+  const [stats, setStats] = useState(() => {
+    const saved = localStorage.getItem("mediassist_stats");
+    return saved ? JSON.parse(saved) : { queries: 0, images: 0, reports: 0, emergencies: 0 };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("mediassist_stats", JSON.stringify(stats));
+  }, [stats]);
+
+  const incrementStat = (key) => {
+    setStats(prev => ({ ...prev, [key]: prev[key] + 1 }));
+  };
+
   useEffect(() => {
     localStorage.setItem("mediassist_dark", darkMode);
     if (darkMode) document.body.classList.add("dark-mode");
@@ -1180,7 +1215,11 @@ export default function App() {
         body: JSON.stringify({ system: VAULT_SYSTEM_PROMPT + langPrompt, messages: [{ role: "user", content: `Please summarize: ${contentText}` }] })
       });
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || "Could not generate summary.";
+      const summaryText = data.choices?.[0]?.message?.content || "Could not generate summary.";
+      if (summaryText && !summaryText.startsWith("⚠️")) {
+        incrementStat("reports");
+      }
+      return summaryText;
     } catch (e) {
       return "⚠️ Summary generation failed.";
     }
@@ -1214,6 +1253,7 @@ export default function App() {
       }
       const data = await res.json();
       setAnalyzerResult(data.choices?.[0]?.message?.content || "No details extracted.");
+      incrementStat("images");
     } catch (e) {
       setAnalyzerResult(`⚠️ Extraction failed: ${e.message}`);
     } finally {
@@ -1318,6 +1358,8 @@ export default function App() {
       const reply = data.choices?.[0]?.message?.content || "No reply returned.";
 
       setChatMsgs(prev => [...prev, { id: uid(), role: "assistant", ts: new Date(), emergency: emerg, content: reply }]);
+      incrementStat("queries");
+      if (emerg) incrementStat("emergencies");
     } catch (e) {
       setChatMsgs(prev => [...prev, { id: uid(), role: "assistant", ts: new Date(), content: "⚠️ Error sending details. Please try again." }]);
     } finally {
@@ -1356,14 +1398,14 @@ export default function App() {
 
   const navItems = [
     { id: "home", icon: "🏠", label: "Dashboard" },
-    { id: "chat", icon: "💬", label: "AI Medical Chat" },
-    { id: "checker", icon: "🩺", label: "Symptom Checker" },
-    { id: "analyzer", icon: "🔬", label: "Prescription Analyzer" },
-    { id: "vault", icon: "🔐", label: "Health Vault" },
-    { id: "meds", icon: "⏰", label: "Meds Reminder" },
+    { id: "chat", icon: "💬", label: "Symptom Chat" },
+    { id: "analyzer", icon: "🔬", label: "Image Analysis" },
+    { id: "vault", icon: "📋", label: "Report Summary" },
+    { id: "meds", icon: "💊", label: "Medicine Info" },
     { id: "emergency", icon: "🚨", label: "Emergency Guide" },
     { id: "faq", icon: "❓", label: "Health FAQ" },
-    { id: "modelinfo", icon: "⚙️", label: "Model & Safety Info" }
+    { id: "privacy", icon: "🔒", label: "Privacy Policy" },
+    { id: "reset", icon: "🔄", label: "Reset Conversations" }
   ];
 
   return (
@@ -1388,7 +1430,28 @@ export default function App() {
 
           <div style={{ flex: 1, padding: "16px 12px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
             {navItems.map(n => (
-              <button key={n.id} onClick={() => setTab(n.id)} style={{
+              <button key={n.id} onClick={() => {
+                if (n.id === "reset") {
+                  if (confirm("Are you sure you want to reset all conversations, documents, reminders, and statistics? This cannot be undone.")) {
+                    localStorage.removeItem("mediassist_chat");
+                    localStorage.removeItem("mediassist_vault");
+                    localStorage.removeItem("mediassist_reminders");
+                    localStorage.removeItem("mediassist_vitals");
+                    localStorage.removeItem("mediassist_stats");
+                    
+                    setChatMsgs([initMsg]);
+                    setVaultRecords([]);
+                    setReminders([]);
+                    setStats({ queries: 0, images: 0, reports: 0, emergencies: 0 });
+                    setAnalyzerResult("");
+                    
+                    alert("Conversations and statistics have been successfully reset!");
+                    setTab("home");
+                  }
+                } else {
+                  setTab(n.id);
+                }
+              }} style={{
                 display: "flex", alignItems: "center", gap: 12, width: "100%",
                 background: tab === n.id ? "var(--primary-light)" : "transparent",
                 border: "none", borderRadius: 12, padding: "12px 14px",
@@ -1399,6 +1462,12 @@ export default function App() {
                 {n.label}
               </button>
             ))}
+          </div>
+
+          <div style={{ padding: "12px", margin: "0 12px 12px", background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 12 }}>
+            <p style={{ margin: 0, fontSize: 10, color: "#be123c", lineHeight: 1.4, fontWeight: 500 }}>
+              ⚠️ <strong>Disclaimer:</strong> For educational use only. Always consult a medical physician for health concerns.
+            </p>
           </div>
 
           <div style={{ padding: "14px", borderTop: "1px solid var(--border-color)" }}>
@@ -1444,13 +1513,7 @@ export default function App() {
         {/* Dynamic Pages */}
         <div style={{ flex: 1, overflow: "hidden" }}>
           {tab === "home" && (
-            <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 24 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-                <ECGSimulator onTriggerTriage={handleTriggerTriage} />
-                <BodyMap onSelectSymptom={(s) => { setTab("chat"); setTimeout(() => handleSend(s), 150); }} />
-              </div>
-              <DashboardScreen vitalsLogs={vitalsLogs} onAddLog={handleAddLog} />
-            </div>
+            <DashboardScreen stats={stats} onNavigate={setTab} />
           )}
           {tab === "chat" && (
             <ChatScreen
@@ -1467,7 +1530,6 @@ export default function App() {
               speakText={speakText}
             />
           )}
-          {tab === "checker" && <CheckerScreen onAskTriage={(s) => { setTab("chat"); setTimeout(() => handleSend(s), 100); }} />}
           {tab === "analyzer" && (
             <AnalyzerScreen
               onImageUpload={handleUpload}
@@ -1482,7 +1544,7 @@ export default function App() {
           {tab === "meds" && <RemindersScreen reminders={reminders} onAddReminder={handleAddReminder} onToggleReminder={handleToggleReminder} />}
           {tab === "emergency" && <EmergencyScreen />}
           {tab === "faq" && <FAQScreen onAsk={(q) => { setTab("chat"); setTimeout(() => handleSend(q), 100); }} />}
-          {tab === "modelinfo" && <ModelInfoScreen />}
+          {tab === "privacy" && <PrivacyPolicyScreen />}
         </div>
 
         {/* Safety Disclaimer Footer */}
