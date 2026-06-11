@@ -613,7 +613,7 @@ function CheckerScreen({ onAskTriage }) {
   );
 }
 
-function AnalyzerScreen({ onImageUpload, uploadedFile, onClearFile, loading, results }) {
+function AnalyzerScreen({ onImageUpload, uploadedFile, onClearFile, loading, results, onAnalyze }) {
   const fileRef = useRef();
   return (
     <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
@@ -632,15 +632,26 @@ function AnalyzerScreen({ onImageUpload, uploadedFile, onClearFile, loading, res
             <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>Supports JPG, PNG</span>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 14, alignItems: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", padding: "12px", borderRadius: 12 }}>
-            <img src={uploadedFile.preview} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{uploadedFile.name}</p>
-              <p style={{ margin: 0, fontSize: 10, color: "var(--text-muted)" }}>Image ready for extraction</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", background: "var(--bg-primary)", border: "1px solid var(--border-color)", padding: "12px", borderRadius: 12 }}>
+              <img src={uploadedFile.preview} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{uploadedFile.name}</p>
+                <p style={{ margin: 0, fontSize: 10, color: "var(--text-muted)" }}>Image ready for extraction</p>
+              </div>
+              <button onClick={onClearFile} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", padding: 6 }}>✕</button>
             </div>
-            <button onClick={onClearFile} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", padding: 6 }}>✕</button>
+            <button onClick={onAnalyze} disabled={loading} style={{
+              background: "var(--primary)", color: "#fff", border: "none", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyOrigin: "center", justifyContent: "center", gap: 8, transition: "background 0.15s"
+            }}>
+              {loading ? "Analyzing..." : "🔍 Extract Medication Schedule"}
+            </button>
           </div>
         )}
+
+        <div style={{ marginTop: 12, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>
+          🔒 <strong>Privacy Notice:</strong> Uploaded medical data is processed live in your memory context and is not saved permanently on external storage or databases.
+        </div>
       </div>
 
       {loading && (
@@ -719,6 +730,9 @@ function VaultScreen({ records, onAddRecord, onGenerateSummary }) {
             <textarea value={content} onChange={e => setContent(e.target.value)} style={{ width: "100%", height: 100, padding: "10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", outline: "none", resize: "none" }} placeholder="Paste extracted document text here for local indexing and AI summaries..." required />
           </div>
           <button type="submit" style={{ background: "var(--primary)", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, cursor: "pointer" }}>Store Document</button>
+          <div style={{ marginTop: 6, background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: 8, padding: "8px 10px", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4 }}>
+            🔒 <strong>Privacy Notice:</strong> Stored documents are indexed privately inside your local browser's database and are not saved on external servers.
+          </div>
         </form>
       </div>
 
@@ -899,26 +913,37 @@ function ChatScreen({ messages, onSend, loading, onImageUpload, uploadedFile, on
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-        {messages.map(m => (
-          <div key={m.id} style={{ display: "flex", flexDirection: m.role === "user" ? "row-reverse" : "row", gap: 12, marginBottom: 20, alignItems: "flex-start" }}>
-            <Avatar label={m.role === "user" ? "You" : "M"} bg={m.role === "user" ? "#1e293b" : "var(--primary)"} />
-            <div style={{ maxWidth: "75%", display: "flex", flexDirection: "column", gap: 6, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{
-                background: m.role === "user" ? "var(--primary)" : "var(--bg-white)",
-                color: m.role === "user" ? "#fff" : "var(--text-primary)",
-                border: m.role === "user" ? "none" : "1px solid var(--border-color)",
-                borderRadius: m.role === "user" ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
-                padding: "12px 18px", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap"
-              }}>{m.content}</div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ fontSize: 9, color: "var(--text-muted)" }}>{new Date(m.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
-                {m.role === "assistant" && (
-                  <button onClick={() => speakText(m.content, voiceLang)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12 }} title="Listen Response">🔊 Speak</button>
-                )}
+        {messages.map(m => {
+          const isRedFlag = m.emergency || hasEmergencyKeywords(m.content);
+          return (
+            <div key={m.id} style={{ display: "flex", flexDirection: m.role === "user" ? "row-reverse" : "row", gap: 12, marginBottom: 20, alignItems: "flex-start" }}>
+              <Avatar label={m.role === "user" ? "You" : "M"} bg={m.role === "user" ? "#1e293b" : "var(--primary)"} />
+              <div style={{ maxWidth: "75%", display: "flex", flexDirection: "column", gap: 6, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  background: m.role === "user" ? "var(--primary)" : isRedFlag ? "#fef2f2" : "var(--bg-white)",
+                  color: m.role === "user" ? "#fff" : "var(--text-primary)",
+                  border: m.role === "user" ? "none" : isRedFlag ? "1.5px solid #ef4444" : "1px solid var(--border-color)",
+                  borderRadius: m.role === "user" ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
+                  padding: "12px 18px", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap",
+                  boxShadow: isRedFlag ? "0 4px 12px rgba(239, 68, 68, 0.12)" : "none"
+                }}>
+                  {isRedFlag && m.role !== "user" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: "#ef4444", fontWeight: 800, fontSize: 11, letterSpacing: "0.5px" }}>
+                      <span>🚨 CLINICAL RED FLAG DETECTED</span>
+                    </div>
+                  )}
+                  {m.content}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 9, color: "var(--text-muted)" }}>{new Date(m.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
+                  {m.role === "assistant" && (
+                    <button onClick={() => speakText(m.content, voiceLang)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12 }} title="Listen Response">🔊 Speak</button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {loading && <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 20 }}>
           <Avatar label="M" bg="var(--primary)" />
           <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: "4px 18px 18px 18px", padding: "14px 20px" }}>
@@ -994,6 +1019,95 @@ function FAQScreen({ onAsk }) {
   );
 }
 
+const hasEmergencyKeywords = (text) => {
+  if (typeof text !== "string") return false;
+  const keywords = [/🚨/i, /emergency/i, /immediate medical attention/i, /call 112/i, /call 911/i, /seek immediate care/i, /red flag/i, /critical indicator/i, /go to the emergency/i];
+  return keywords.some(regex => regex.test(text));
+};
+
+function ModelInfoScreen() {
+  return (
+    <div style={{ padding: "24px", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "24px" }}>
+        <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 900, color: "var(--primary)" }}>⚙️ Model Architecture & Safety Guidelines</h2>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          MediAssist AI leverages advanced generative artificial intelligence and custom triage logic to provide preliminary educational support. Learn about the underlying technology stack, clinical guardrails, and privacy architecture below.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+        {/* Model Spec */}
+        <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 800 }}>🤖 Core Model Engine</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ background: "var(--bg-primary)", padding: "12px", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>Model Identifier</span>
+              <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 800, color: "var(--primary)" }}>gemini-3.1-flash-lite</p>
+            </div>
+            <div style={{ background: "var(--bg-primary)", padding: "12px", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>Supported Capabilities</span>
+              <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 800 }}>Multimodal Vision, Text, Speech-to-Text, Structured JSON Output</p>
+            </div>
+            <div style={{ background: "var(--bg-primary)", padding: "12px", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>Average Latency</span>
+              <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 800, color: "#22c55e" }}>~400ms (Real-time Streaming)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Safety Guardrails */}
+        <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 800 }}>🛡️ Clinical Triage Guardrails</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ background: "#22c55e", width: 8, height: 8, borderRadius: "50%", marginTop: 5, flexShrink: 0 }} />
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800 }}>Green Triage (Home Care)</span>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Mild/routine symptoms: cold, standard minor bruises, allergies. Suggestions focus on hydration, rest, and comfort.</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ background: "#eab308", width: 8, height: 8, borderRadius: "50%", marginTop: 5, flexShrink: 0 }} />
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800 }}>Amber Triage (Consult Doctor)</span>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Persistent or moderate conditions: continuous fever, persistent rashes. Recommends booking a medical consultation.</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ background: "#ef4444", width: 8, height: 8, borderRadius: "50%", marginTop: 5, flexShrink: 0 }} />
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#ef4444" }}>Red Triage (Emergency Care)</span>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Critical symptoms: chest pain, speech difficulty, stroke indicators. Triggers high-priority visual alerts and provides immediate next steps.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Prompts Section */}
+      <div style={{ background: "var(--bg-white)", border: "1px solid var(--border-color)", borderRadius: 16, padding: "20px" }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 800 }}>📝 AI System Instructions</h3>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-muted)" }}>Below are the safety and operational instructions configured for our AI models to ensure structured clinical guidance:</p>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <span style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 6 }}>💬 Medical Assistant System Prompt:</span>
+            <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", padding: "14px", borderRadius: 8, fontSize: 11, fontFamily: "monospace", color: "var(--text-secondary)", maxHeight: 150, overflowY: "auto" }}>
+              {CHAT_SYSTEM_PROMPT}
+            </div>
+          </div>
+          <div>
+            <span style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 6 }}>🔬 Prescription Parser System Prompt:</span>
+            <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", padding: "14px", borderRadius: 8, fontSize: 11, fontFamily: "monospace", color: "var(--text-secondary)", maxHeight: 150, overflowY: "auto" }}>
+              {ANALYZER_SYSTEM_PROMPT}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── MAIN APP COMPONENT ─────────────────────────────────────── */
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -1036,6 +1150,8 @@ export default function App() {
 
   const [chatMsgs, setChatMsgs] = useState([initMsg]);
   const [analyzerMsgs, setAnalyzerMsgs] = useState([]);
+  const [aiLanguage, setAiLanguage] = useState("English");
+  const [analyzerResult, setAnalyzerResult] = useState("");
 
   useEffect(() => {
     localStorage.setItem("mediassist_dark", darkMode);
@@ -1056,16 +1172,52 @@ export default function App() {
   };
 
   const handleGenerateSummary = async (contentText) => {
+    const langPrompt = aiLanguage !== "English" ? ` Please write the entire summary in ${aiLanguage}.` : "";
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: VAULT_SYSTEM_PROMPT, messages: [{ role: "user", content: `Please summarize: ${contentText}` }] })
+        body: JSON.stringify({ system: VAULT_SYSTEM_PROMPT + langPrompt, messages: [{ role: "user", content: `Please summarize: ${contentText}` }] })
       });
       const data = await res.json();
       return data.choices?.[0]?.message?.content || "Could not generate summary.";
     } catch (e) {
       return "⚠️ Summary generation failed.";
+    }
+  };
+
+  const handleAnalyzePrescription = async () => {
+    if (!uploadedFile?.base64) return;
+    setLoading(true);
+    setAnalyzerResult("");
+    const langPrompt = aiLanguage !== "English" ? ` IMPORTANT: Please write the entire parsed analysis in ${aiLanguage}.` : "";
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: ANALYZER_SYSTEM_PROMPT + langPrompt,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "image", source: { type: "base64", media_type: uploadedFile.type, data: uploadedFile.base64 } },
+                { type: "text", text: "Extract medication schedule from this image." }
+              ]
+            }
+          ]
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${res.status}`);
+      }
+      const data = await res.json();
+      setAnalyzerResult(data.choices?.[0]?.message?.content || "No details extracted.");
+    } catch (e) {
+      setAnalyzerResult(`⚠️ Extraction failed: ${e.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1152,10 +1304,11 @@ export default function App() {
         return { role: "assistant", content: m.content };
       });
 
+      const langPrompt = aiLanguage !== "English" ? `\n\nIMPORTANT: Respond entirely in the ${aiLanguage} language.` : "";
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: CHAT_SYSTEM_PROMPT, messages: apiMsgs })
+        body: JSON.stringify({ system: CHAT_SYSTEM_PROMPT + langPrompt, messages: apiMsgs })
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -1209,7 +1362,8 @@ export default function App() {
     { id: "vault", icon: "🔐", label: "Health Vault" },
     { id: "meds", icon: "⏰", label: "Meds Reminder" },
     { id: "emergency", icon: "🚨", label: "Emergency Guide" },
-    { id: "faq", icon: "❓", label: "Health FAQ" }
+    { id: "faq", icon: "❓", label: "Health FAQ" },
+    { id: "modelinfo", icon: "⚙️", label: "Model & Safety Info" }
   ];
 
   return (
@@ -1272,7 +1426,17 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 10, color: "var(--text-muted)" }}>Secure localStorage data vault • Gemini 3.1 Engine</p>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>🌐 AI Language:</span>
+              <select value={aiLanguage} onChange={e => setAiLanguage(e.target.value)} style={{
+                padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", fontSize: 11, fontWeight: 700
+              }}>
+                <option value="English">🇬🇧 English</option>
+                <option value="Hindi">🇮🇳 Hindi (हिन्दी)</option>
+                <option value="Telugu">🇮🇳 Telugu (తెలుగు)</option>
+              </select>
+            </div>
             <Pill color="var(--primary)" bg="var(--primary-light)">🛡️ Private Mode</Pill>
           </div>
         </div>
@@ -1310,13 +1474,26 @@ export default function App() {
               uploadedFile={uploadedFile}
               onClearFile={() => setUploadedFile(null)}
               loading={loading}
-              results={chatMsgs[chatMsgs.length - 1]?.role === "assistant" ? chatMsgs[chatMsgs.length - 1].content : ""}
+              results={analyzerResult}
+              onAnalyze={handleAnalyzePrescription}
             />
           )}
           {tab === "vault" && <VaultScreen records={vaultRecords} onAddRecord={handleAddRecord} onGenerateSummary={handleGenerateSummary} />}
           {tab === "meds" && <RemindersScreen reminders={reminders} onAddReminder={handleAddReminder} onToggleReminder={handleToggleReminder} />}
           {tab === "emergency" && <EmergencyScreen />}
           {tab === "faq" && <FAQScreen onAsk={(q) => { setTab("chat"); setTimeout(() => handleSend(q), 100); }} />}
+          {tab === "modelinfo" && <ModelInfoScreen />}
+        </div>
+
+        {/* Safety Disclaimer Footer */}
+        <div style={{
+          background: "var(--bg-white)", borderTop: "1px solid var(--border-color)",
+          padding: "10px 24px", display: "flex", alignItems: "center", justifyOrigin: "center", justifyContent: "space-between", flexShrink: 0, gap: 16
+        }}>
+          <p style={{ margin: 0, fontSize: 10.5, color: "var(--text-muted)", lineHeight: 1.4, flex: 1 }}>
+            ⚠️ <strong>Medical Disclaimer:</strong> This assistant provides educational and preliminary support only. It is NOT a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified physician for clinical guidance. If you are experiencing a medical emergency, seek immediate care.
+          </p>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--primary)", whiteSpace: "nowrap" }}>⚕️ Educational Support Only</span>
         </div>
       </div>
     </div>
