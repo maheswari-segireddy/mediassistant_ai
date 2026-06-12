@@ -659,7 +659,7 @@ function AnalyzerScreen({ onImageUpload, uploadedFile, onClearFile, loading, res
   );
 }
 
-function VaultScreen({ records, onAddRecord, onGenerateSummary }) {
+function VaultScreen({ records, onAddRecord, onUpdateRecord, onGenerateSummary }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Prescription");
   const [content, setContent] = useState("");
@@ -678,8 +678,9 @@ function VaultScreen({ records, onAddRecord, onGenerateSummary }) {
     setLoading(true);
     try {
       const summaryText = await onGenerateSummary(rec.content);
-      rec.summary = summaryText;
-      setSelectedRecord({ ...rec });
+      const updated = { ...rec, summary: summaryText };
+      onUpdateRecord(updated);
+      setSelectedRecord(updated);
     } catch (e) {
       alert("Failed to summarize document.");
     } finally {
@@ -1206,6 +1207,12 @@ export default function App() {
     localStorage.setItem("mediassist_vault", JSON.stringify(newRecords));
   };
 
+  const handleUpdateRecord = (updated) => {
+    const newRecords = vaultRecords.map(r => r.id === updated.id ? updated : r);
+    setVaultRecords(newRecords);
+    localStorage.setItem("mediassist_vault", JSON.stringify(newRecords));
+  };
+
   const handleGenerateSummary = async (contentText) => {
     const langPrompt = aiLanguage !== "English" ? ` Please write the entire summary in ${aiLanguage}.` : "";
     try {
@@ -1356,10 +1363,11 @@ export default function App() {
       }
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || "No reply returned.";
+      const isEmerg = hasEmergencyKeywords(reply);
 
-      setChatMsgs(prev => [...prev, { id: uid(), role: "assistant", ts: new Date(), emergency: emerg, content: reply }]);
+      setChatMsgs(prev => [...prev, { id: uid(), role: "assistant", ts: new Date(), emergency: isEmerg, content: reply }]);
       incrementStat("queries");
-      if (emerg) incrementStat("emergencies");
+      if (isEmerg) incrementStat("emergencies");
     } catch (e) {
       setChatMsgs(prev => [...prev, { id: uid(), role: "assistant", ts: new Date(), content: "⚠️ Error sending details. Please try again." }]);
     } finally {
@@ -1541,7 +1549,7 @@ export default function App() {
               onAnalyze={handleAnalyzePrescription}
             />
           )}
-          {tab === "vault" && <VaultScreen records={vaultRecords} onAddRecord={handleAddRecord} onGenerateSummary={handleGenerateSummary} />}
+          {tab === "vault" && <VaultScreen records={vaultRecords} onAddRecord={handleAddRecord} onUpdateRecord={handleUpdateRecord} onGenerateSummary={handleGenerateSummary} />}
           {tab === "meds" && <RemindersScreen reminders={reminders} onAddReminder={handleAddReminder} onToggleReminder={handleToggleReminder} />}
           {tab === "emergency" && <EmergencyScreen />}
           {tab === "faq" && <FAQScreen onAsk={(q) => { setTab("chat"); setTimeout(() => handleSend(q), 100); }} />}
